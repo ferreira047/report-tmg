@@ -564,13 +564,26 @@ function compareTechnicians(a, b) {
   return SITUACAO[a.situacao].order - SITUACAO[b.situacao].order || a.nome.localeCompare(b.nome, 'pt-BR');
 }
 
+// Campos conferidos na validação: quem ficou com o valor de FALLBACK está sem o dado.
+const VALIDATION_FIELDS = [
+  ['regiao', 'região'],
+  ['cm', 'CM'],
+  ['responsavel', 'responsável'],
+  ['gerente', 'gerente']
+];
+
 function buildValidation(records) {
+  const missing = (field) => records.filter((r) => r[field] === FALLBACK[field]);
   return {
     total: records.length,
-    semRegiao: records.filter((r) => r.regiao === FALLBACK.regiao).length,
-    semCm: records.filter((r) => r.cm === FALLBACK.cm).length,
-    semResponsavel: records.filter((r) => r.responsavel === FALLBACK.responsavel).length,
-    semGerente: records.filter((r) => r.gerente === FALLBACK.gerente).length,
+    semRegiao: missing('regiao').length,
+    semCm: missing('cm').length,
+    semResponsavel: missing('responsavel').length,
+    semGerente: missing('gerente').length,
+    // Técnicos com algum dado faltando e quais são, para mostrar quem corrigir no cadastro.
+    incompletos: records
+      .map((r) => ({ record: r, faltando: VALIDATION_FIELDS.filter(([field]) => r[field] === FALLBACK[field]).map(([, label]) => label) }))
+      .filter(({ faltando }) => faltando.length),
     inconsistentes: records.filter((r) => r.inconsistente)
   };
 }
@@ -729,13 +742,20 @@ function renderValidation() {
   );
 
   const alerts = [];
+  if (v.incompletos.length) {
+    const nomes = v.incompletos.map(({ record, faltando }) => `${record.original} (sem ${faltando.join(', ')})`);
+    const visiveis = nomes.slice(0, 5).join('; ');
+    const resto = nomes.length > 5 ? `; e mais ${fmt(nomes.length - 5)} em "Ver detalhes"` : '';
+    alerts.push(el('p', 'rounded-sm border-l-4 border-l-[color:var(--orange)] bg-[color:var(--orange-soft)] px-3 py-2 text-xs text-[color:var(--warn-ink)]',
+      `${fmt(v.incompletos.length)} ${v.incompletos.length === 1 ? 'técnico com dados faltando' : 'técnicos com dados faltando'} no cadastro: ${visiveis}${resto}.`));
+  }
   if (v.inconsistentes.length) {
     alerts.push(el('p', 'rounded-sm border-l-4 border-l-[color:var(--orange)] bg-[color:var(--orange-soft)] px-3 py-2 text-xs text-[color:var(--warn-ink)]',
       `${fmt(v.inconsistentes.length)} técnicos têm Total Geral diferente da soma das atividades.`));
   }
   $('validation-alerts').replaceChildren(...alerts);
 
-  const hasDetails = v.inconsistentes.length > 0;
+  const hasDetails = v.incompletos.length > 0 || v.inconsistentes.length > 0;
   const toggle = $('toggle-details-button');
   toggle.classList.toggle('hidden', !hasDetails);
   toggle.setAttribute('aria-expanded', String(state.showDetails));
@@ -745,6 +765,7 @@ function renderValidation() {
   panel.classList.toggle('hidden', !(hasDetails && state.showDetails));
   if (!state.showDetails) return;
   const lists = [
+    ['Dados faltando', v.incompletos.map(({ record, faltando }) => `${record.original} · sem ${faltando.join(', ')}`)],
     ['Total Geral inconsistente', v.inconsistentes.map((r) => `${r.original} · Total Geral ${fmt(r.totalGeral)}, soma ${fmt(r.atividadeTotal)}`)]
   ].filter(([, items]) => items.length);
   panel.replaceChildren(...lists.map(([title, items]) => {
