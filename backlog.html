@@ -1115,7 +1115,7 @@
       const entrants = formatOptionalCount(document.getElementById("entrants-input").value);
       const backlog = hasBacklog ? formatCount(backlogCount) : "";
 
-      return [
+      const lines = [
         `➡️ Parciais Backlog ${reportType}:`,
         "",
         `Análise de Limpeza de Fila FMMT ${reportType} - ${time}HS`,
@@ -1126,10 +1126,11 @@
         `❌ Tickets em falha: ${backlog}`,
         `▶️ Entrantes: ${entrants}`,
         "",
-        `Backlog no momento: ${backlog}`,
-        "",
-        `SITES FORA COM FLAG 1: ${neDownCount === null ? "" : formatCount(neDownCount)}`
-      ].join("\n");
+        `Backlog no momento: ${backlog}`
+      ];
+      // Sem o TrocaIP não há contagem do Genesis, então a linha sai do parcial.
+      if (neDownCount !== null) lines.push("", `SITES FORA COM FLAG 1: ${formatCount(neDownCount)}`);
+      return lines.join("\n");
     }
 
     function copyTextFallback(text) {

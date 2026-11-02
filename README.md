@@ -28,7 +28,7 @@ O script pede a senha no terminal e regrava `app/cadastro.enc.js`.
 
 O botão **Report Backlog** (abaixo de "Processamento local no navegador") abre o `backlog.html` já com a planilha importada na Análise, na aba `Page 1`. O link **Análise de técnicos** faz o caminho de volta. A planilha fica guardada na sessão da aba do navegador (`app/shared-file.js`, sessionStorage): vale enquanto a aba estiver aberta e some ao clicar em **Limpar** em qualquer uma das páginas.
 
-**Copiar parcial** termina com a linha **SITES FORA COM FLAG 1**, consultada no Genesis na hora do clique (veja abaixo); se o Genesis não responder, ela sai em branco e o painel avisa.
+**Copiar parcial** termina com a linha **SITES FORA COM FLAG 1**, consultada no Genesis na hora do clique (veja abaixo); se o Genesis não responder, a linha fica fora do parcial e o painel avisa.
 
 ## Sites fora com Flag 1 (Genesis)
 
@@ -37,7 +37,7 @@ O número vem do Painel Online do Genesis: NE IDs (coluna Site) distintos com **
 1. Conecte na VPN.
 2. Abra o `TrocaIP.exe` (ícone TLP perto do relógio). Ele responde em `http://127.0.0.1:8765/genesis/ne-fora?regional=TMG`.
 3. Abra o `backlog.html` (pelo site ou com duplo clique) e use **Copiar parcial**.
-4. No site publicado, o navegador pede na primeira vez para o site acessar **dispositivos na rede local**: clique em **Permitir**. Sem essa permissão a linha sai em branco. Se tiver bloqueado, libere no ícone à esquerda do endereço → **Permissões do site** e recarregue a página.
+4. No site publicado, o navegador pede na primeira vez para o site acessar **dispositivos na rede local**: clique em **Permitir**. Sem essa permissão a linha fica fora do parcial. Se tiver bloqueado, libere no ícone à esquerda do endereço → **Permissões do site** e recarregue a página.
 
 O endereço e a porta ficam em `GENESIS_NE_DOWN_URL`, no início do script do `backlog.html`.
 
