@@ -64,9 +64,9 @@ const TOA_ESTADOS = {
   pendente: 'pendente'
 };
 
-// Provedor que é um técnico ("TLP-T0000000-NOME"); os demais (CMs, centrais,
-// TMG_FMMT etc.) ficam fora da contagem sem gerar aviso.
-const TECNICO_PROVEDOR = /^[A-Z]+-T\d+-/i;
+// Provedor que é um técnico ("TLP-T0000000-NOME", às vezes "TLP- T0000000-NOME" ou "TLP-T0000000 - NOME");
+// os demais (CMs, centrais, TMG_FMMT etc.) ficam fora da contagem sem gerar aviso.
+const TECNICO_PROVEDOR = /^[A-Z]+\s*-\s*T\d+\s*-/i;
 
 // Cabeçalhos aceitos na planilha de cadastro enviada pela tela.
 const CADASTRO_HEADER_ALIASES = {
