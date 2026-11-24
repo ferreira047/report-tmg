@@ -888,14 +888,16 @@ function renderTechTable(filtered) {
   const rows = techTableRows(filtered);
   $('tech-table-title').textContent = view.title;
   $('tech-table-description').textContent = `${view.description} ${fmt(rows.length)} técnicos.`;
-  // A coluna da TSK iniciada só aparece na visão "Com atividade iniciada", logo após o técnico.
+  // Visão "Com atividade iniciada": lista enxuta com técnico, TSK/ATSK iniciada, região, CM
+  // e responsável; as colunas de contagem e a situação ficam escondidas.
   const showTsk = state.view.techTable === 'comIniciada';
   $('tsk-header').classList.toggle('hidden', !showTsk);
+  document.querySelectorAll('#tech-section [data-count-col]').forEach((th) => th.classList.toggle('hidden', showTsk));
 
   const body = $('tech-rows');
   const foot = $('tech-foot');
   if (!rows.length) {
-    body.replaceChildren(emptyTableRow(showTsk ? 12 : 11, 'Nenhum técnico nesta situação com os filtros atuais.'));
+    body.replaceChildren(emptyTableRow(showTsk ? 5 : 11, 'Nenhum técnico nesta situação com os filtros atuais.'));
     foot.replaceChildren();
     return;
   }
@@ -916,11 +918,9 @@ function renderTechTable(filtered) {
     row.append(
       el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.regiao),
       el('td', 'whitespace-nowrap px-3 py-3 text-[color:var(--ink-4)]', record.cm),
-      el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.responsavel),
-      ...NUMERIC_FIELDS.map((field) => numberCell(record[field], 'px-2 py-3')),
-      total,
-      situacao
+      el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.responsavel)
     );
+    if (!showTsk) row.append(...NUMERIC_FIELDS.map((field) => numberCell(record[field], 'px-2 py-3')), total, situacao);
     return row;
   }));
 
@@ -928,7 +928,8 @@ function renderTechTable(filtered) {
   const footRow = el('tr');
   const label = el('td', 'px-3 py-3', `Total · ${fmt(rows.length)} técnicos`);
   label.colSpan = showTsk ? 5 : 4;
-  footRow.append(label, ...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'));
+  footRow.append(label);
+  if (!showTsk) footRow.append(...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'));
   foot.replaceChildren(footRow);
 }
 
