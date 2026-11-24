@@ -180,7 +180,7 @@
           <p id="analyzed-sheet" class="text-xs text-[color:var(--muted)]"></p>
         </div>
 
-        <div class="mb-7 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="mb-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <button id="reset-view-card" type="button" title="Limpar todos os filtros e voltar à visualização inicial" class="panel rounded-md border-l-4 border-l-[color:var(--blue)] p-4 text-left transition hover:bg-[color:var(--hover)] focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)] sm:p-5">
             <p class="text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Técnicos</p>
             <p id="count-tecnicos" class="tabular mt-3 text-3xl font-semibold tracking-tight text-[color:var(--blue)]">0</p>
@@ -190,6 +190,11 @@
             <span class="block text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Não iniciaram</span>
             <span id="count-nao-iniciaram" class="tabular mt-3 block text-3xl font-semibold tracking-tight text-[color:var(--blue)]">0</span>
             <span id="caption-nao-iniciaram" class="mt-1 block text-xs text-[color:var(--muted)]">Nenhuma atividade iniciada até agora</span>
+          </button>
+          <button type="button" data-situacao="comIniciada" aria-pressed="false" aria-controls="tech-section" class="situation-card panel rounded-md border-l-4 border-l-[color:var(--ink-3)] p-4 text-left transition hover:bg-[color:var(--hover)] focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)] sm:p-5">
+            <span class="block text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Com atividade iniciada</span>
+            <span id="count-com-iniciada" class="tabular mt-3 block text-3xl font-semibold tracking-tight text-[color:var(--ink-2)]">0</span>
+            <span id="caption-com-iniciada" class="mt-1 block text-xs text-[color:var(--muted)]">Em andamento agora</span>
           </button>
           <button type="button" data-situacao="comConclusao" aria-pressed="false" aria-controls="tech-section" class="situation-card panel rounded-md border-l-4 border-l-[color:var(--green)] p-4 text-left transition hover:bg-[color:var(--hover)] focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)] sm:p-5">
             <span class="block text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">Com conclusão</span>
@@ -231,6 +236,7 @@
                       <option value="semConclusaoSemPendencia">Sem conclusão + sem pendência</option>
                       <option value="comConclusao">Com conclusão</option>
                       <option value="naoIniciaram">Não iniciaram</option>
+                      <option value="comIniciada">Com atividade iniciada</option>
                       <option value="todos">Todos os técnicos</option>
                     </select>
                   </label>
@@ -261,6 +267,7 @@
                     <th scope="col" class="px-2 py-3 text-right font-semibold">Pendente</th>
                     <th scope="col" class="px-2 py-3 text-right font-semibold">Total</th>
                     <th scope="col" class="px-3 py-3 font-semibold">Situação</th>
+                    <th scope="col" class="px-3 py-3 font-semibold">TSK iniciada</th>
                   </tr>
                 </thead>
                 <tbody id="tech-rows" class="divide-y divide-[color:var(--line-soft)]"></tbody>
@@ -402,6 +409,6 @@
   </dialog>
 
   <script src="app/shared-file.js?v=20261117a"></script>
-  <script src="app/app.js?v=20261117a"></script>
+  <script src="app/app.js?v=20261124a"></script>
 </body>
 </html>

@@ -41,6 +41,15 @@ const TOA_HEADER_ALIASES = {
   estado: ['Estado']
 };
 
+// Colunas opcionais da extração do TOA, usadas para mostrar qual TSK está iniciada.
+const TOA_TSK_ALIASES = {
+  ordem: ['Número de Ordem', 'Numero de Ordem'],
+  site: ['NE ID'],
+  cidade: ['Cidade'],
+  uf: ['UF'],
+  eta: ['ETA']
+};
+
 // Tipos de atividade preventiva; todos os demais contam como corretiva.
 const TOA_PREVENTIVA_TYPES = ['Atividade Preventiva'];
 
@@ -128,6 +137,8 @@ const DONUT_CENTERS = {
 
 // Cor do card e da fatia "Não iniciaram" (mesmo azul do card Técnicos).
 const NAO_INICIARAM_COLOR = 'var(--blue)';
+// Cor do card e da fatia "Com atividade iniciada".
+const COM_INICIADA_COLOR = 'var(--ink-2)';
 
 const SITUACAO_FILTER_OPTIONS = [
   ['all', 'Todas'],
@@ -135,7 +146,8 @@ const SITUACAO_FILTER_OPTIONS = [
   ['semConclusao', 'Sem conclusão'],
   ['semConclusaoComPendencia', 'Sem conclusão + com pendência'],
   ['semConclusaoSemPendencia', 'Sem conclusão + sem pendência'],
-  ['naoIniciaram', 'Não iniciaram']
+  ['naoIniciaram', 'Não iniciaram'],
+  ['comIniciada', 'Com atividade iniciada']
 ];
 
 const TECH_TABLE_VIEWS = {
@@ -144,6 +156,7 @@ const TECH_TABLE_VIEWS = {
   semConclusaoSemPendencia: { title: 'Técnicos sem conclusão + sem pendência', description: 'Caso crítico: concluída = 0 e pendente = 0.' },
   comConclusao: { title: 'Técnicos com conclusão', description: 'Pelo menos uma atividade concluída.' },
   naoIniciaram: { title: 'Técnicos que não iniciaram', description: 'Só atividades não iniciadas: nada concluído, iniciado ou pendente.' },
+  comIniciada: { title: 'Técnicos com atividade iniciada', description: 'Pelo menos uma atividade com status Iniciado agora (qualquer tipo).' },
   todos: { title: 'Todos os técnicos', description: 'Todas as situações.' }
 };
 
@@ -315,6 +328,8 @@ function readToaSheet(rows, header, sheetName) {
   const foraDoCadastro = new Map();
   const estadosDesconhecidos = new Map();
   const atividades = { corretiva: 0, preventiva: 0 };
+  const tskColumns = matchHeaders(rows[header.index], TOA_TSK_ALIASES);
+  const tskValue = (row, field) => (tskColumns[field] === undefined ? '' : toText(row[tskColumns[field]]));
 
   for (const row of rows.slice(header.index + 1)) {
     const provedor = toText(row[map.provedor]);
@@ -333,15 +348,29 @@ function readToaSheet(rows, header, sheetName) {
       continue;
     }
     const tipo = preventivas.has(normalizeName(row[map.tipo])) ? 'preventiva' : 'corretiva';
-    if (!byCodigo.has(tecnico.codigo)) byCodigo.set(tecnico.codigo, { tecnico, info, counts: { corretiva: {}, preventiva: {} } });
-    const counts = byCodigo.get(tecnico.codigo).counts[tipo];
+    if (!byCodigo.has(tecnico.codigo)) byCodigo.set(tecnico.codigo, { tecnico, info, counts: { corretiva: {}, preventiva: {} }, iniciadas: [] });
+    const entry = byCodigo.get(tecnico.codigo);
+    const counts = entry.counts[tipo];
     counts[field] = (counts[field] || 0) + 1;
+    if (field === 'iniciado') {
+      entry.iniciadas.push({
+        tsk: tskValue(row, 'ordem') || 'TSK sem número',
+        tipoAtividade: toText(row[map.tipo]),
+        site: tskValue(row, 'site'),
+        cidade: tskValue(row, 'cidade'),
+        uf: tskValue(row, 'uf'),
+        eta: formatEta(tskColumns.eta === undefined ? '' : row[tskColumns.eta])
+      });
+    }
     atividades[tipo] += 1;
   }
 
-  const records = [...byCodigo.values()].map(({ tecnico, info, counts }) => {
+  const records = [...byCodigo.values()].map(({ tecnico, info, counts, iniciadas }) => {
     const all = Object.fromEntries(NUMERIC_FIELDS.map((f) => [f, (counts.corretiva[f] || 0) + (counts.preventiva[f] || 0)]));
     const record = buildRecord(tecnico, info, all, 0);
+    record.tsksIniciadas = iniciadas;
+    // A busca por técnico também acha pelo número da TSK iniciada.
+    if (iniciadas.length) record.searchText += ` ${normalizeName(iniciadas.map((item) => item.tsk).join(' '))}`;
     record.countsByTipo = { all, ...counts };
     record.tipoTecnico = classifyTipoTecnico(counts);
     return record;
@@ -350,6 +379,20 @@ function readToaSheet(rows, header, sheetName) {
     throw new UserError(`Nenhum técnico do cadastro encontrado na aba "${sheetName}". Confira se a extração do TOA é da região certa ou atualize o cadastro.`);
   }
   return { records, toa: { atividades, foraDoCadastro, estadosDesconhecidos } };
+}
+
+// ETA do TOA: texto "14:09" ou fração de dia do Excel.
+function formatEta(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const minutes = Math.round((value % 1) * 24 * 60);
+    return `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+  }
+  return toText(value);
+}
+
+// "TSK… (site)" de cada TSK iniciada, para a planilha exportada.
+function tsksIniciadasText(record) {
+  return (record.tsksIniciadas || []).map((item) => (item.site ? `${item.tsk} (${item.site})` : item.tsk)).join(', ');
 }
 
 // Técnico de corretiva: tem TSK corretiva em fila. De preventiva: só preventiva em fila.
@@ -511,6 +554,12 @@ const isSemConclusaoSemPendencia = (record) => isSemConclusao(record) && record.
 // Ainda não mexeu em nada: só tem atividades não iniciadas (canceladas não contam).
 const isNaoIniciou = (record) => record.naoIniciado > 0 && record.concluida <= 0 && record.iniciado <= 0 && record.pendente <= 0;
 
+// Tem atividade em andamento: pelo menos uma com status Iniciado, de qualquer tipo.
+const isComIniciada = (record) => {
+  const all = record.countsByTipo ? record.countsByTipo.all : record;
+  return (all.iniciado || 0) > 0;
+};
+
 const SITUACAO_PREDICATES = {
   all: () => true,
   todos: () => true,
@@ -518,7 +567,8 @@ const SITUACAO_PREDICATES = {
   semConclusao: isSemConclusao,
   semConclusaoComPendencia: isSemConclusaoComPendencia,
   semConclusaoSemPendencia: isSemConclusaoSemPendencia,
-  naoIniciaram: isNaoIniciou
+  naoIniciaram: isNaoIniciou,
+  comIniciada: isComIniciada
 };
 
 function getSituacao(record) {
@@ -790,6 +840,9 @@ function renderCards(summary, base) {
   const naoIniciaram = base.filter(isNaoIniciou).length;
   $('count-nao-iniciaram').textContent = fmt(naoIniciaram);
   $('caption-nao-iniciaram').textContent = `${percent(naoIniciaram, base.length)}% de ${fmt(base.length)} técnicos`;
+  const comIniciada = base.filter(isComIniciada).length;
+  $('count-com-iniciada').textContent = fmt(comIniciada);
+  $('caption-com-iniciada').textContent = `${percent(comIniciada, base.length)}% de ${fmt(base.length)} técnicos · em andamento`;
   $('count-com-conclusao').textContent = fmt(summary.comConclusao);
   $('count-sem-conclusao').textContent = fmt(summary.semConclusao);
   $('count-critico').textContent = fmt(summary.semConclusaoSemPendencia);
@@ -806,6 +859,25 @@ function renderCards(summary, base) {
   document.querySelectorAll('.situation-card').forEach((card) => {
     card.setAttribute('aria-pressed', String(card.dataset.situacao === state.filters.situacao));
   });
+}
+
+// Coluna "TSK iniciada": número da TSK e, embaixo, site, cidade/UF e ETA.
+function tskIniciadaCell(record) {
+  const cell = el('td', 'px-3 py-3');
+  const items = record.tsksIniciadas || [];
+  if (!items.length) {
+    cell.append(el('span', 'text-[color:var(--faint)]', '–'));
+    return cell;
+  }
+  for (const item of items) {
+    const block = el('div', 'mb-1.5 last:mb-0');
+    block.title = item.tipoAtividade;
+    const local = [item.site, [item.cidade, item.uf].filter(Boolean).join('/'), item.eta && `ETA ${item.eta}`].filter(Boolean).join(' · ');
+    block.append(el('span', 'block whitespace-nowrap font-medium text-[color:var(--ink)]', item.tsk));
+    if (local) block.append(el('span', 'block whitespace-nowrap text-xs text-[color:var(--muted)]', local));
+    cell.append(block);
+  }
+  return cell;
 }
 
 function techTableRows(filtered) {
@@ -826,7 +898,7 @@ function renderTechTable(filtered) {
   const body = $('tech-rows');
   const foot = $('tech-foot');
   if (!rows.length) {
-    body.replaceChildren(emptyTableRow(11, 'Nenhum técnico nesta situação com os filtros atuais.'));
+    body.replaceChildren(emptyTableRow(12, 'Nenhum técnico nesta situação com os filtros atuais.'));
     foot.replaceChildren();
     return;
   }
@@ -849,7 +921,8 @@ function renderTechTable(filtered) {
       el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.responsavel),
       ...NUMERIC_FIELDS.map((field) => numberCell(record[field], 'px-2 py-3')),
       total,
-      situacao
+      situacao,
+      tskIniciadaCell(record)
     );
     return row;
   }));
@@ -858,7 +931,7 @@ function renderTechTable(filtered) {
   const footRow = el('tr');
   const label = el('td', 'px-3 py-3', `Total · ${fmt(rows.length)} técnicos`);
   label.colSpan = 4;
-  footRow.append(label, ...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'));
+  footRow.append(label, ...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'), el('td'));
   foot.replaceChildren(footRow);
 }
 
@@ -873,6 +946,14 @@ function donutView(summary, base) {
       { label: 'Iniciaram alguma atividade', color: 'var(--track-strong)', count: base.length - naoIniciaram }
     ];
     return { segments, total: base.length, center: segments[0], caption: ['Não iniciaram'], subtitle: 'Percentual sobre todos os técnicos, sem o filtro de situação.' };
+  }
+  if (situacao === 'comIniciada') {
+    const comIniciada = base.filter(isComIniciada).length;
+    const segments = [
+      { label: 'Com atividade iniciada', color: COM_INICIADA_COLOR, count: comIniciada },
+      { label: 'Sem atividade iniciada', color: 'var(--track-strong)', count: base.length - comIniciada }
+    ];
+    return { segments, total: base.length, center: segments[0], caption: ['Com atividade', 'iniciada'], subtitle: 'Percentual sobre todos os técnicos, sem o filtro de situação.' };
   }
 
   const keys = ['comConclusao', 'semConclusaoComPendencia', 'semConclusaoSemPendencia'];
@@ -1056,11 +1137,12 @@ function writeWorkbook(baseName, sheets) {
 const situacaoLabel = (record) => SITUACAO[record.situacao].label;
 
 function exportTechList() {
-  const headers = ['Técnico', 'Código', 'Região', 'CM', 'Responsável', 'Gerente', 'Horário', 'Cancelada', 'Concluída', 'Iniciado', 'Não iniciado', 'Pendente', 'Total', 'Situação'];
+  const headers = ['Técnico', 'Código', 'Região', 'CM', 'Responsável', 'Gerente', 'Horário', 'Cancelada', 'Concluída', 'Iniciado', 'Não iniciado', 'Pendente', 'Total', 'Situação', 'TSK iniciada'];
   const rows = techTableRows(applyFilters(state.data)).map((r) => ({
     'Técnico': r.nome, 'Código': r.codigo, 'Região': r.regiao, 'CM': r.cm, 'Responsável': r.responsavel, 'Gerente': r.gerente,
     'Horário': r.horario, 'Cancelada': r.cancelada, 'Concluída': r.concluida, 'Iniciado': r.iniciado,
-    'Não iniciado': r.naoIniciado, 'Pendente': r.pendente, 'Total': r.atividadeTotal, 'Situação': situacaoLabel(r)
+    'Não iniciado': r.naoIniciado, 'Pendente': r.pendente, 'Total': r.atividadeTotal, 'Situação': situacaoLabel(r),
+    'TSK iniciada': tsksIniciadasText(r)
   }));
   writeWorkbook('tecnicos', [{ name: 'Técnicos', rows, headers }]);
 }
