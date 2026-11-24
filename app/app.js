@@ -861,21 +861,15 @@ function renderCards(summary, base) {
   });
 }
 
-// Coluna "TSK iniciada": número da TSK e, embaixo, site, cidade/UF e ETA.
+// Coluna "TSK/ATSK iniciada" (só na visão "Com atividade iniciada"): o número de cada
+// TSK iniciada; o tipo da atividade, o site e o ETA ficam no título (passar o mouse).
 function tskIniciadaCell(record) {
   const cell = el('td', 'px-3 py-3');
-  const items = record.tsksIniciadas || [];
-  if (!items.length) {
-    cell.append(el('span', 'text-[color:var(--faint)]', '–'));
-    return cell;
-  }
-  for (const item of items) {
-    const block = el('div', 'mb-1.5 last:mb-0');
-    block.title = item.tipoAtividade;
-    const local = [item.site, [item.cidade, item.uf].filter(Boolean).join('/'), item.eta && `ETA ${item.eta}`].filter(Boolean).join(' · ');
-    block.append(el('span', 'block whitespace-nowrap font-medium text-[color:var(--ink)]', item.tsk));
-    if (local) block.append(el('span', 'block whitespace-nowrap text-xs text-[color:var(--muted)]', local));
-    cell.append(block);
+  for (const item of record.tsksIniciadas || []) {
+    const local = [item.tipoAtividade, item.site, [item.cidade, item.uf].filter(Boolean).join('/'), item.eta && `ETA ${item.eta}`].filter(Boolean).join(' · ');
+    const tsk = el('span', 'block whitespace-nowrap font-semibold text-[color:var(--ink)]', item.tsk);
+    tsk.title = local;
+    cell.append(tsk);
   }
   return cell;
 }
@@ -894,11 +888,14 @@ function renderTechTable(filtered) {
   const rows = techTableRows(filtered);
   $('tech-table-title').textContent = view.title;
   $('tech-table-description').textContent = `${view.description} ${fmt(rows.length)} técnicos.`;
+  // A coluna da TSK iniciada só aparece na visão "Com atividade iniciada", logo após o técnico.
+  const showTsk = state.view.techTable === 'comIniciada';
+  $('tsk-header').classList.toggle('hidden', !showTsk);
 
   const body = $('tech-rows');
   const foot = $('tech-foot');
   if (!rows.length) {
-    body.replaceChildren(emptyTableRow(12, 'Nenhum técnico nesta situação com os filtros atuais.'));
+    body.replaceChildren(emptyTableRow(showTsk ? 12 : 11, 'Nenhum técnico nesta situação com os filtros atuais.'));
     foot.replaceChildren();
     return;
   }
@@ -914,15 +911,15 @@ function renderTechTable(filtered) {
     }
     const situacao = el('td', 'px-3 py-3');
     situacao.append(badge(record.situacao));
+    row.append(name);
+    if (showTsk) row.append(tskIniciadaCell(record));
     row.append(
-      name,
       el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.regiao),
       el('td', 'whitespace-nowrap px-3 py-3 text-[color:var(--ink-4)]', record.cm),
       el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.responsavel),
       ...NUMERIC_FIELDS.map((field) => numberCell(record[field], 'px-2 py-3')),
       total,
-      situacao,
-      tskIniciadaCell(record)
+      situacao
     );
     return row;
   }));
@@ -930,8 +927,8 @@ function renderTechTable(filtered) {
   const totals = summarize(rows);
   const footRow = el('tr');
   const label = el('td', 'px-3 py-3', `Total · ${fmt(rows.length)} técnicos`);
-  label.colSpan = 4;
-  footRow.append(label, ...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'), el('td'));
+  label.colSpan = showTsk ? 5 : 4;
+  footRow.append(label, ...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'));
   foot.replaceChildren(footRow);
 }
 
