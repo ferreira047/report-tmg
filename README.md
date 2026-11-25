@@ -84,7 +84,7 @@ O técnico no formato `XXX-NNNN-Nome` é separado em código (`XXX-NNNN`) e nome
 - **Com conclusão**: concluída > 0
 - **Sem conclusão + com pendência**: concluída = 0 e pendente > 0
 - **Sem conclusão + sem pendência** (crítico): concluída = 0 e pendente = 0
-- **Com atividade iniciada**: pelo menos uma atividade com status Iniciado, de qualquer tipo (card, filtro Situação e tabela de técnicos). Com a extração do TOA, a coluna **TSK iniciada** mostra qual TSK está iniciada (`Número de Ordem`), com site (`NE ID`), cidade/UF e ETA; a busca por técnico também acha pelo número da TSK, e o Exportar planilha leva a coluna.
+- **Com atividade iniciada**: pelo menos uma atividade com status Iniciado, de qualquer tipo (card, filtro Situação e tabela de técnicos). Com a extração do TOA, a visão vira uma lista enxuta (Técnico, TSK/ATSK iniciada, NE ID, Região, CM, Responsável): a TSK vem de `Número de Ordem` e o NE ID de `NE ID` (ou de `END_ID` quando o NE ID vem vazio, comum em preventivas e atividades conjuntas); passar o mouse na TSK mostra tipo, cidade/UF e ETA. A busca por técnico também acha pelo número da TSK, e o Exportar planilha leva as colunas TSK iniciada e NE ID.
 
 "Sem conclusão" sempre inclui os dois subgrupos.
 

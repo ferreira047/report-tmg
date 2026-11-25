@@ -45,6 +45,7 @@ const TOA_HEADER_ALIASES = {
 const TOA_TSK_ALIASES = {
   ordem: ['Número de Ordem', 'Numero de Ordem'],
   site: ['NE ID'],
+  endId: ['END_ID', 'END ID'],
   cidade: ['Cidade'],
   uf: ['UF'],
   eta: ['ETA']
@@ -356,7 +357,8 @@ function readToaSheet(rows, header, sheetName) {
       entry.iniciadas.push({
         tsk: tskValue(row, 'ordem') || 'TSK sem número',
         tipoAtividade: toText(row[map.tipo]),
-        site: tskValue(row, 'site'),
+        // Preventivas e atividades conjuntas costumam vir sem NE ID; aí vale o END_ID.
+        site: tskValue(row, 'site') || tskValue(row, 'endId'),
         cidade: tskValue(row, 'cidade'),
         uf: tskValue(row, 'uf'),
         eta: formatEta(tskColumns.eta === undefined ? '' : row[tskColumns.eta])
@@ -388,11 +390,6 @@ function formatEta(value) {
     return `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
   }
   return toText(value);
-}
-
-// "TSK… (site)" de cada TSK iniciada, para a planilha exportada.
-function tsksIniciadasText(record) {
-  return (record.tsksIniciadas || []).map((item) => (item.site ? `${item.tsk} (${item.site})` : item.tsk)).join(', ');
 }
 
 // Técnico de corretiva: tem TSK corretiva em fila. De preventiva: só preventiva em fila.
@@ -874,6 +871,15 @@ function tskIniciadaCell(record) {
   return cell;
 }
 
+// Coluna "NE ID" ao lado: o site de cada TSK iniciada, na mesma ordem (uma linha por TSK).
+function neIdIniciadaCell(record) {
+  const cell = el('td', 'px-3 py-3');
+  for (const item of record.tsksIniciadas || []) {
+    cell.append(el('span', 'block whitespace-nowrap text-[color:var(--ink-2)]', item.site || '—'));
+  }
+  return cell;
+}
+
 function techTableRows(filtered) {
   const sorter = state.view.techSort === 'responsavel'
     ? (a, b) => compareLabels(a.responsavel, b.responsavel) || compareTechnicians(a, b)
@@ -888,16 +894,17 @@ function renderTechTable(filtered) {
   const rows = techTableRows(filtered);
   $('tech-table-title').textContent = view.title;
   $('tech-table-description').textContent = `${view.description} ${fmt(rows.length)} técnicos.`;
-  // Visão "Com atividade iniciada": lista enxuta com técnico, TSK/ATSK iniciada, região, CM
+  // Visão "Com atividade iniciada": lista enxuta com técnico, TSK/ATSK iniciada, NE ID, região, CM
   // e responsável; as colunas de contagem e a situação ficam escondidas.
   const showTsk = state.view.techTable === 'comIniciada';
   $('tsk-header').classList.toggle('hidden', !showTsk);
+  $('neid-header').classList.toggle('hidden', !showTsk);
   document.querySelectorAll('#tech-section [data-count-col]').forEach((th) => th.classList.toggle('hidden', showTsk));
 
   const body = $('tech-rows');
   const foot = $('tech-foot');
   if (!rows.length) {
-    body.replaceChildren(emptyTableRow(showTsk ? 5 : 11, 'Nenhum técnico nesta situação com os filtros atuais.'));
+    body.replaceChildren(emptyTableRow(showTsk ? 6 : 11, 'Nenhum técnico nesta situação com os filtros atuais.'));
     foot.replaceChildren();
     return;
   }
@@ -914,7 +921,7 @@ function renderTechTable(filtered) {
     const situacao = el('td', 'px-3 py-3');
     situacao.append(badge(record.situacao));
     row.append(name);
-    if (showTsk) row.append(tskIniciadaCell(record));
+    if (showTsk) row.append(tskIniciadaCell(record), neIdIniciadaCell(record));
     row.append(
       el('td', 'px-3 py-3 text-[color:var(--ink-4)]', record.regiao),
       el('td', 'whitespace-nowrap px-3 py-3 text-[color:var(--ink-4)]', record.cm),
@@ -927,7 +934,7 @@ function renderTechTable(filtered) {
   const totals = summarize(rows);
   const footRow = el('tr');
   const label = el('td', 'px-3 py-3', `Total · ${fmt(rows.length)} técnicos`);
-  label.colSpan = showTsk ? 5 : 4;
+  label.colSpan = showTsk ? 6 : 4;
   footRow.append(label);
   if (!showTsk) footRow.append(...NUMERIC_FIELDS.map((field) => numberCell(totals[field], 'px-2 py-3')), numberCell(totals.atividades, 'px-2 py-3'), el('td'));
   foot.replaceChildren(footRow);
@@ -1135,12 +1142,13 @@ function writeWorkbook(baseName, sheets) {
 const situacaoLabel = (record) => SITUACAO[record.situacao].label;
 
 function exportTechList() {
-  const headers = ['Técnico', 'Código', 'Região', 'CM', 'Responsável', 'Gerente', 'Horário', 'Cancelada', 'Concluída', 'Iniciado', 'Não iniciado', 'Pendente', 'Total', 'Situação', 'TSK iniciada'];
+  const headers = ['Técnico', 'Código', 'Região', 'CM', 'Responsável', 'Gerente', 'Horário', 'Cancelada', 'Concluída', 'Iniciado', 'Não iniciado', 'Pendente', 'Total', 'Situação', 'TSK iniciada', 'NE ID'];
   const rows = techTableRows(applyFilters(state.data)).map((r) => ({
     'Técnico': r.nome, 'Código': r.codigo, 'Região': r.regiao, 'CM': r.cm, 'Responsável': r.responsavel, 'Gerente': r.gerente,
     'Horário': r.horario, 'Cancelada': r.cancelada, 'Concluída': r.concluida, 'Iniciado': r.iniciado,
     'Não iniciado': r.naoIniciado, 'Pendente': r.pendente, 'Total': r.atividadeTotal, 'Situação': situacaoLabel(r),
-    'TSK iniciada': tsksIniciadasText(r)
+    'TSK iniciada': (r.tsksIniciadas || []).map((item) => item.tsk).join(', '),
+    'NE ID': (r.tsksIniciadas || []).map((item) => item.site || '—').join(', ')
   }));
   writeWorkbook('tecnicos', [{ name: 'Técnicos', rows, headers }]);
 }
