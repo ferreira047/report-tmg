@@ -335,10 +335,18 @@
                 <button type="button" data-aging-group="commandCenter" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">Centralizado</button>
               </div>
             </div>
-            <div class="mt-3 flex flex-wrap gap-2">
+            <div class="mt-3 flex flex-wrap items-center gap-2">
             <button id="aging-stale-only-button" type="button" aria-pressed="false" title="Mostra na lista só as TSKs paradas há mais de 1 dia" class="inline-flex items-center justify-center gap-2 rounded-sm border border-[color:var(--green)] px-3 py-2 text-xs font-semibold text-[color:var(--green)] transition hover:bg-[color:var(--green-soft)] aria-pressed:border-[color:var(--green-solid)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white">
               Acima de 1 dia
             </button>
+              <div role="group" aria-label="Prioridade (pode escolher mais de uma)" title="Prioridade: clique para ligar ou desligar; com nenhuma ligada, valem todas" class="inline-flex rounded-sm border border-[color:var(--line-strong)] p-0.5 text-xs font-semibold">
+                <button type="button" data-aging-priority="P1" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">P1</button>
+                <button type="button" data-aging-priority="P2" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">P2</button>
+                <button type="button" data-aging-priority="P3" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">P3</button>
+                <button type="button" data-aging-priority="P4" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">P4</button>
+                <button type="button" data-aging-priority="P5" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">P5</button>
+                <button type="button" data-aging-priority="Sem prioridade" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">Sem prior.</button>
+              </div>
             <button id="export-aging-button" type="button" title="Baixa uma planilha Excel com o aging por ANF e a lista exibida (todo o backlog ou só as paradas há mais de 1 dia)" class="inline-flex items-center justify-center gap-2 rounded-sm border border-[color:var(--green)] px-3 py-2 text-xs font-semibold text-[color:var(--green)] transition hover:bg-[color:var(--green-soft)]">
               Exportar aging
             </button>
@@ -365,12 +373,6 @@
                 ANF
                 <select id="aging-anf-filter" class="rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2 text-sm font-normal text-[color:var(--ink)] focus:border-[color:var(--green)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]">
                   <option value="">Todas as ANFs</option>
-                </select>
-              </label>
-              <label class="flex items-center gap-2 text-xs font-semibold text-[color:var(--muted)]">
-                Prioridade
-                <select id="aging-priority-filter" class="rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2 text-sm font-normal text-[color:var(--ink)] focus:border-[color:var(--green)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]">
-                  <option value="">Todas</option>
                 </select>
               </label>
             </div>
@@ -513,8 +515,8 @@
     let agingContextToggleAt = 0;
     // Botão "Só mais de 1 dia": a lista mostra só as TSKs paradas há mais de 1 dia.
     let agingStaleOnly = false;
-    // Filtro "Prioridade" da lista ("" = todas).
-    let currentAgingPriority = "";
+    // Botões de prioridade do quadro de aging (vazio = todas; vários podem ficar ligados).
+    let currentAgingPriorities = new Set();
 
     // Comparações de tipo e status ignoram acentos, caixa e espaços excedentes.
     function normalizeText(value) {
@@ -1761,10 +1763,11 @@
     };
     // "Parada há mais de 1 dia": a partir de 24 h desde a Criação do NTT.
     const BACKLOG_STALE_DAYS = 1;
-    // Opções do filtro "Prioridade", nesta ordem; outro valor da coluna GI entra no fim.
+    // Prioridade da coluna GI; vazia (ou fora de P1 a P5) conta como "Sem prioridade".
     const BACKLOG_PRIORITIES = ["P1", "P2", "P3", "P4", "P5", "Sem prioridade"];
     function agingPriorityOf(ticket) {
-      return ticket.priority.toUpperCase() || "Sem prioridade";
+      const priority = ticket.priority.toUpperCase();
+      return BACKLOG_PRIORITIES.includes(priority) ? priority : "Sem prioridade";
     }
     // Prioridade (coluna GI): P1 e P2 em destaque na lista.
     const BACKLOG_PRIORITY_TONES = { P1: "text-[color:var(--red)]", P2: "text-[color:var(--orange)]" };
@@ -1788,6 +1791,7 @@
     function buildBacklogAging(analysis, now = new Date()) {
       const tickets = analysis.backlogTickets
         .filter((ticket) => currentAgingGroup === "all" || ticket.group === currentAgingGroup)
+        .filter((ticket) => !currentAgingPriorities.size || currentAgingPriorities.has(agingPriorityOf(ticket)))
         .map((ticket) => {
           const created = parseNttCreated(ticket.createdAt);
           const days = created ? Math.max(0, (now - created) / 86400000) : null;
@@ -1880,6 +1884,9 @@
       const listTickets = agingStaleOnly ? aging.stale : aging.sorted;
       const staleOnlyButton = document.getElementById("aging-stale-only-button");
       staleOnlyButton.setAttribute("aria-pressed", String(agingStaleOnly));
+      for (const button of document.querySelectorAll("[data-aging-priority]")) {
+        button.setAttribute("aria-pressed", String(currentAgingPriorities.has(button.dataset.agingPriority)));
+      }
       document.getElementById("aging-list-title").textContent = agingStaleOnly ? "Paradas há mais de 1 dia" : "Todo o backlog";
 
       // Filtro por ANF: opções com as ANFs que têm TSK na lista; várias ANFs escolhidas
@@ -1901,25 +1908,11 @@
         ...optionAnfs.map((anf) => option(anf, `${anf} (${fmt(staleByAnf.get(anf) || 0)})`))
       );
       anfFilter.value = selectedAnfs.length > 1 ? "__multi__" : (selectedAnfs[0] || "");
-      const inSelection = listTickets.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
-
-      // Filtro por prioridade, dentro da seleção acima: as contagens seguem o que está escolhido.
-      const priorityCounts = new Map();
-      for (const ticket of inSelection) priorityCounts.set(agingPriorityOf(ticket), (priorityCounts.get(agingPriorityOf(ticket)) || 0) + 1);
-      const priorities = [
-        ...BACKLOG_PRIORITIES.filter((priority) => priorityCounts.has(priority) || priority === currentAgingPriority),
-        ...[...priorityCounts.keys()].filter((priority) => !BACKLOG_PRIORITIES.includes(priority)).sort()
-      ];
-      const priorityFilter = document.getElementById("aging-priority-filter");
-      priorityFilter.replaceChildren(
-        option("", `Todas (${fmt(inSelection.length)})`),
-        ...priorities.map((priority) => option(priority, `${priority} (${fmt(priorityCounts.get(priority) || 0)})`))
-      );
-      priorityFilter.value = currentAgingPriority;
-      const stale = inSelection.filter((ticket) => !currentAgingPriority || agingPriorityOf(ticket) === currentAgingPriority);
+      const stale = listTickets.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
+      const selectedPriorities = BACKLOG_PRIORITIES.filter((priority) => currentAgingPriorities.has(priority));
       const scope = [
         selectedAnfs.length ? `em ${selectedAnfs.join(", ")}` : "",
-        currentAgingPriority ? `com ${currentAgingPriority}` : ""
+        selectedPriorities.length ? `com ${selectedPriorities.join(", ")}` : ""
       ].filter(Boolean).join(" ");
       document.getElementById("aging-stale-description").textContent = scope
         ? `${fmt(stale.length)} TSKs ${scope}, da mais antiga para a mais recente.`
@@ -1974,8 +1967,7 @@
         return;
       }
       const stale = (agingStaleOnly ? aging.stale : aging.sorted)
-        .filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf))
-        .filter((ticket) => !currentAgingPriority || agingPriorityOf(ticket) === currentAgingPriority);
+        .filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
       const workbook = XLSX.utils.book_new();
       const columns = agingColumns();
       const pivotSheet = XLSX.utils.aoa_to_sheet([
@@ -2007,7 +1999,7 @@
       const groupSuffix = { all: "todas", technician: "fila-tecnica", commandCenter: "centralizado" }[currentAgingGroup];
       const anfSuffix = currentAgingAnfs.size === 1 ? `-${normalizeText([...currentAgingAnfs][0]).replace(/\s+/g, "-")}`
         : currentAgingAnfs.size > 1 ? `-${currentAgingAnfs.size}-anfs` : "";
-      const listSuffix = `${agingStaleOnly ? "-mais-de-1-dia" : ""}${currentAgingPriority ? `-${normalizeText(currentAgingPriority).replace(/\s+/g, "-")}` : ""}`;
+      const listSuffix = `${agingStaleOnly ? "-mais-de-1-dia" : ""}${currentAgingPriorities.size ? `-${BACKLOG_PRIORITIES.filter((priority) => currentAgingPriorities.has(priority)).map((priority) => normalizeText(priority).replace(/\s+/g, "-")).join("-")}` : ""}`;
       XLSX.writeFile(workbook, `aging-backlog-${groupSuffix}${anfSuffix}${listSuffix}-${new Date().toISOString().slice(0, 10)}.xlsx`);
       showFeedback(`Aging exportado: ${stale.length.toLocaleString("pt-BR")} TSKs ${agingStaleOnly ? "paradas há mais de 1 dia" : "em backlog"}.`, "ok");
     }
@@ -2022,7 +2014,7 @@
       currentAgingGroup = "all";
       currentAgingAnfs = new Set();
       agingStaleOnly = false;
-      currentAgingPriority = "";
+      currentAgingPriorities = new Set();
       document.getElementById("technician-sort").value = technicianSortOrder;
       results.classList.add("hidden");
       clearButton.classList.add("hidden");
@@ -2094,10 +2086,15 @@
       agingStaleOnly = !agingStaleOnly;
       if (currentAnalysis) renderBacklogAging(currentAnalysis);
     });
-    document.getElementById("aging-priority-filter").addEventListener("change", (event) => {
-      currentAgingPriority = event.target.value;
-      if (currentAnalysis) renderBacklogAging(currentAnalysis);
-    });
+    // Prioridade: cada botão liga ou desliga a sua; com nenhuma ligada, valem todas.
+    for (const button of document.querySelectorAll("[data-aging-priority]")) {
+      button.addEventListener("click", () => {
+        const priority = button.dataset.agingPriority;
+        if (currentAgingPriorities.has(priority)) currentAgingPriorities.delete(priority);
+        else currentAgingPriorities.add(priority);
+        if (currentAnalysis) renderBacklogAging(currentAnalysis);
+      });
+    }
     document.getElementById("aging-anf-filter").addEventListener("change", (event) => {
       if (event.target.value === "__multi__") return;
       currentAgingAnfs = new Set(event.target.value ? [event.target.value] : []);
