@@ -28,6 +28,8 @@ O script pede a senha no terminal e regrava `app/cadastro.enc.js`.
 
 O botão **Report Backlog** (abaixo de "Processamento local no navegador") abre o `backlog.html` já com a planilha importada na Análise, na aba `Page 1`. O link **Análise de técnicos** faz o caminho de volta. A planilha fica guardada na sessão da aba do navegador (`app/shared-file.js`, sessionStorage): vale enquanto a aba estiver aberta e some ao clicar em **Limpar** em qualquer uma das páginas.
 
+Abaixo do **Volume encerrado por bucket** fica o **Aging das TSKs em backlog**: o tempo desde a Criação do NTT (coluna AS) até agora, nas faixas <1d, 1d a 3d, 3d a 5d, 5d a 10d e >10d, por ANF, com filtro Todas / Fila técnica / Centralizado. A ANF sai do código do CM (coluna AK; sem CM, do bucket): 31 BHE, 32 JFA, 33 GVS, 34 URA/ULA, 35 VGA/VGS, 37 DVL, 38 MCL; o resto (CM de fora de MG ou sem código) fica em Outros. Embaixo, a lista das TSKs paradas há mais de 1 dia, da mais antiga para a mais recente, filtrável por ANF (no seletor ou clicando na ANF do quadro; Ctrl/Cmd + clique junta mais de uma, e clicar de novo na ANF volta a mostrar todas); **Exportar aging** baixa o quadro e a lista em Excel.
+
 **Copiar parcial** termina com a linha **SITES FORA COM FLAG 1**, consultada no Genesis na hora do clique (veja abaixo); se o Genesis não responder, a linha fica fora do parcial e o painel avisa.
 
 ## Sites fora com Flag 1 (Genesis)
