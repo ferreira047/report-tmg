@@ -360,12 +360,20 @@
               <h4 id="aging-list-title" class="text-sm font-semibold">Todo o backlog</h4>
               <p id="aging-stale-description" class="mt-1 text-xs text-[color:var(--muted)]">Da mais antiga para a mais recente.</p>
             </div>
-            <label class="flex items-center gap-2 text-xs font-semibold text-[color:var(--muted)]">
-              ANF
-              <select id="aging-anf-filter" class="rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2 text-sm font-normal text-[color:var(--ink)] focus:border-[color:var(--green)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]">
-                <option value="">Todas as ANFs</option>
-              </select>
-            </label>
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="flex items-center gap-2 text-xs font-semibold text-[color:var(--muted)]">
+                ANF
+                <select id="aging-anf-filter" class="rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2 text-sm font-normal text-[color:var(--ink)] focus:border-[color:var(--green)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]">
+                  <option value="">Todas as ANFs</option>
+                </select>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-[color:var(--muted)]">
+                Prioridade
+                <select id="aging-priority-filter" class="rounded-sm border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 py-2 text-sm font-normal text-[color:var(--ink)] focus:border-[color:var(--green)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ring)]">
+                  <option value="">Todas</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div class="max-h-[480px] overflow-y-auto overflow-x-hidden">
             <table class="w-full table-fixed text-left text-sm">
@@ -505,6 +513,8 @@
     let agingContextToggleAt = 0;
     // Botão "Só mais de 1 dia": a lista mostra só as TSKs paradas há mais de 1 dia.
     let agingStaleOnly = false;
+    // Filtro "Prioridade" da lista ("" = todas).
+    let currentAgingPriority = "";
 
     // Comparações de tipo e status ignoram acentos, caixa e espaços excedentes.
     function normalizeText(value) {
@@ -1751,6 +1761,11 @@
     };
     // "Parada há mais de 1 dia": a partir de 24 h desde a Criação do NTT.
     const BACKLOG_STALE_DAYS = 1;
+    // Opções do filtro "Prioridade", nesta ordem; outro valor da coluna GI entra no fim.
+    const BACKLOG_PRIORITIES = ["P1", "P2", "P3", "P4", "P5", "Sem prioridade"];
+    function agingPriorityOf(ticket) {
+      return ticket.priority.toUpperCase() || "Sem prioridade";
+    }
     // Prioridade (coluna GI): P1 e P2 em destaque na lista.
     const BACKLOG_PRIORITY_TONES = { P1: "text-[color:var(--red)]", P2: "text-[color:var(--orange)]" };
 
@@ -1886,16 +1901,35 @@
         ...optionAnfs.map((anf) => option(anf, `${anf} (${fmt(staleByAnf.get(anf) || 0)})`))
       );
       anfFilter.value = selectedAnfs.length > 1 ? "__multi__" : (selectedAnfs[0] || "");
-      const stale = listTickets.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
-      document.getElementById("aging-stale-description").textContent = selectedAnfs.length
-        ? `${fmt(stale.length)} TSKs em ${selectedAnfs.join(", ")}, da mais antiga para a mais recente.`
+      const inSelection = listTickets.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
+
+      // Filtro por prioridade, dentro da seleção acima: as contagens seguem o que está escolhido.
+      const priorityCounts = new Map();
+      for (const ticket of inSelection) priorityCounts.set(agingPriorityOf(ticket), (priorityCounts.get(agingPriorityOf(ticket)) || 0) + 1);
+      const priorities = [
+        ...BACKLOG_PRIORITIES.filter((priority) => priorityCounts.has(priority) || priority === currentAgingPriority),
+        ...[...priorityCounts.keys()].filter((priority) => !BACKLOG_PRIORITIES.includes(priority)).sort()
+      ];
+      const priorityFilter = document.getElementById("aging-priority-filter");
+      priorityFilter.replaceChildren(
+        option("", `Todas (${fmt(inSelection.length)})`),
+        ...priorities.map((priority) => option(priority, `${priority} (${fmt(priorityCounts.get(priority) || 0)})`))
+      );
+      priorityFilter.value = currentAgingPriority;
+      const stale = inSelection.filter((ticket) => !currentAgingPriority || agingPriorityOf(ticket) === currentAgingPriority);
+      const scope = [
+        selectedAnfs.length ? `em ${selectedAnfs.join(", ")}` : "",
+        currentAgingPriority ? `com ${currentAgingPriority}` : ""
+      ].filter(Boolean).join(" ");
+      document.getElementById("aging-stale-description").textContent = scope
+        ? `${fmt(stale.length)} TSKs ${scope}, da mais antiga para a mais recente.`
         : "Da mais antiga para a mais recente. Clique numa ANF do quadro para filtrar (Ctrl + clique para mais de uma).";
 
       const staleRows = document.getElementById("aging-stale-rows");
       if (!stale.length) {
         const row = make("tr");
         const what = agingStaleOnly ? "Nenhuma TSK parada há mais de 1 dia" : "Nenhuma TSK em backlog";
-        const cell = make("td", "px-5 py-6 text-center text-sm text-[color:var(--muted)]", selectedAnfs.length ? `${what} em ${selectedAnfs.join(", ")}.` : `${what} neste grupo.`);
+        const cell = make("td", "px-5 py-6 text-center text-sm text-[color:var(--muted)]", scope ? `${what} ${scope}.` : `${what} neste grupo.`);
         cell.colSpan = 9;
         row.append(cell);
         staleRows.replaceChildren(row);
@@ -1939,7 +1973,9 @@
         showFeedback("Não há chamados em backlog neste grupo para exportar.", "ok");
         return;
       }
-      const stale = (agingStaleOnly ? aging.stale : aging.sorted).filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
+      const stale = (agingStaleOnly ? aging.stale : aging.sorted)
+        .filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf))
+        .filter((ticket) => !currentAgingPriority || agingPriorityOf(ticket) === currentAgingPriority);
       const workbook = XLSX.utils.book_new();
       const columns = agingColumns();
       const pivotSheet = XLSX.utils.aoa_to_sheet([
@@ -1971,7 +2007,7 @@
       const groupSuffix = { all: "todas", technician: "fila-tecnica", commandCenter: "centralizado" }[currentAgingGroup];
       const anfSuffix = currentAgingAnfs.size === 1 ? `-${normalizeText([...currentAgingAnfs][0]).replace(/\s+/g, "-")}`
         : currentAgingAnfs.size > 1 ? `-${currentAgingAnfs.size}-anfs` : "";
-      const listSuffix = agingStaleOnly ? "-mais-de-1-dia" : "";
+      const listSuffix = `${agingStaleOnly ? "-mais-de-1-dia" : ""}${currentAgingPriority ? `-${normalizeText(currentAgingPriority).replace(/\s+/g, "-")}` : ""}`;
       XLSX.writeFile(workbook, `aging-backlog-${groupSuffix}${anfSuffix}${listSuffix}-${new Date().toISOString().slice(0, 10)}.xlsx`);
       showFeedback(`Aging exportado: ${stale.length.toLocaleString("pt-BR")} TSKs ${agingStaleOnly ? "paradas há mais de 1 dia" : "em backlog"}.`, "ok");
     }
@@ -1986,6 +2022,7 @@
       currentAgingGroup = "all";
       currentAgingAnfs = new Set();
       agingStaleOnly = false;
+      currentAgingPriority = "";
       document.getElementById("technician-sort").value = technicianSortOrder;
       results.classList.add("hidden");
       clearButton.classList.add("hidden");
@@ -2055,6 +2092,10 @@
     }
     document.getElementById("aging-stale-only-button").addEventListener("click", () => {
       agingStaleOnly = !agingStaleOnly;
+      if (currentAnalysis) renderBacklogAging(currentAnalysis);
+    });
+    document.getElementById("aging-priority-filter").addEventListener("change", (event) => {
+      currentAgingPriority = event.target.value;
       if (currentAnalysis) renderBacklogAging(currentAnalysis);
     });
     document.getElementById("aging-anf-filter").addEventListener("change", (event) => {
