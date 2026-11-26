@@ -335,9 +335,14 @@
                 <button type="button" data-aging-group="commandCenter" aria-pressed="false" class="rounded-sm px-3 py-1.5 text-xs font-semibold text-[color:var(--ink-3)] transition hover:bg-[color:var(--paper)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-[color:var(--green)]">Centralizado</button>
               </div>
             </div>
-            <button id="export-aging-button" type="button" title="Baixa uma planilha Excel com o aging por ANF e as TSKs paradas há mais de 1 dia" class="inline-flex items-center justify-center gap-2 rounded-sm border border-[color:var(--green)] px-3 py-2 text-xs font-semibold text-[color:var(--green)] transition hover:bg-[color:var(--green-soft)]">
+            <div class="flex flex-wrap gap-2">
+            <button id="aging-stale-only-button" type="button" aria-pressed="false" title="Mostra na lista só as TSKs paradas há mais de 1 dia" class="inline-flex items-center justify-center gap-2 rounded-sm border border-[color:var(--green)] px-3 py-2 text-xs font-semibold text-[color:var(--green)] transition hover:bg-[color:var(--green-soft)] aria-pressed:border-[color:var(--green-solid)] aria-pressed:bg-[color:var(--green-solid)] aria-pressed:text-white">
+              Só mais de 1 dia
+            </button>
+            <button id="export-aging-button" type="button" title="Baixa uma planilha Excel com o aging por ANF e a lista exibida (todo o backlog ou só as paradas há mais de 1 dia)" class="inline-flex items-center justify-center gap-2 rounded-sm border border-[color:var(--green)] px-3 py-2 text-xs font-semibold text-[color:var(--green)] transition hover:bg-[color:var(--green-soft)]">
               Exportar aging
             </button>
+            </div>
           </div>
           <div class="px-5 pb-4 sm:px-6">
             <p class="text-sm text-[color:var(--ink-3)]"><span id="aging-stale-count" class="tabular text-2xl font-semibold text-[color:var(--red)]">0</span> <span id="aging-summary">TSKs paradas há mais de 1 dia.</span></p>
@@ -352,7 +357,7 @@
           </div>
           <div class="flex flex-wrap items-end justify-between gap-3 border-t border-[color:var(--line)] px-5 pb-3 pt-5 sm:px-6">
             <div>
-              <h4 class="text-sm font-semibold">Paradas há mais de 1 dia</h4>
+              <h4 id="aging-list-title" class="text-sm font-semibold">Todo o backlog</h4>
               <p id="aging-stale-description" class="mt-1 text-xs text-[color:var(--muted)]">Da mais antiga para a mais recente.</p>
             </div>
             <label class="flex items-center gap-2 text-xs font-semibold text-[color:var(--muted)]">
@@ -366,12 +371,13 @@
             <table class="w-full table-fixed text-left text-sm">
               <thead class="sticky top-0 bg-[color:var(--sunken)] text-[11px] uppercase tracking-wide text-[color:var(--muted)]">
                 <tr>
-                  <th scope="col" class="w-[16%] px-3 py-2.5 font-semibold sm:pl-5">TSK</th>
-                  <th scope="col" class="w-[14%] px-3 py-2.5 font-semibold">ANF</th>
-                  <th scope="col" class="w-[17%] px-3 py-2.5 font-semibold">Bucket</th>
-                  <th scope="col" class="hidden w-[10%] px-3 py-2.5 font-semibold lg:table-cell">Status</th>
-                  <th scope="col" class="hidden w-[12%] px-3 py-2.5 font-semibold lg:table-cell">Planilha</th>
-                  <th scope="col" class="hidden w-[12%] px-3 py-2.5 font-semibold md:table-cell">Criação do NTT</th>
+                  <th scope="col" class="w-[15%] px-3 py-2.5 font-semibold sm:pl-5">TSK</th>
+                  <th scope="col" class="w-[7%] px-3 py-2.5 font-semibold">ANF</th>
+                  <th scope="col" class="w-[21%] px-3 py-2.5 font-semibold">Bucket</th>
+                  <th scope="col" class="hidden w-[9%] px-3 py-2.5 font-semibold lg:table-cell">Status</th>
+                  <th scope="col" class="w-[6%] px-3 py-2.5 font-semibold">Prior.</th>
+                  <th scope="col" class="hidden w-[11%] px-3 py-2.5 font-semibold lg:table-cell">Planilha</th>
+                  <th scope="col" class="hidden w-[10%] px-3 py-2.5 font-semibold md:table-cell">Criação do NTT</th>
                   <th scope="col" class="w-[8%] px-3 py-2.5 text-right font-semibold">Parada há</th>
                   <th scope="col" class="w-[11%] px-3 py-2.5 font-semibold sm:pr-5">Aging</th>
                 </tr>
@@ -497,6 +503,8 @@
     // Ctrl + clique no Mac abre o menu de contexto em vez do clique: ali o contextmenu faz a
     // seleção, e o clique que vier logo depois é ignorado.
     let agingContextToggleAt = 0;
+    // Botão "Só mais de 1 dia": a lista mostra só as TSKs paradas há mais de 1 dia.
+    let agingStaleOnly = false;
 
     // Comparações de tipo e status ignoram acentos, caixa e espaços excedentes.
     function normalizeText(value) {
@@ -1743,6 +1751,8 @@
     };
     // "Parada há mais de 1 dia": a partir de 24 h desde a Criação do NTT.
     const BACKLOG_STALE_DAYS = 1;
+    // Prioridade (coluna GI): P1 e P2 em destaque na lista.
+    const BACKLOG_PRIORITY_TONES = { P1: "text-[color:var(--red)]", P2: "text-[color:var(--orange)]" };
 
     // Aceita "17/11/2026 08:00:00", "17/11/2026 08:00" e "17/11/26" (sem hora vale 00:00).
     function parseNttCreated(value) {
@@ -1759,7 +1769,7 @@
       return hours >= 24 ? `${Math.floor(hours / 24)}d ${hours % 24}h` : `${hours}h`;
     }
 
-    // ANF × aging do grupo escolhido, mais a lista das TSKs paradas há mais de 1 dia.
+    // ANF × aging do grupo escolhido, mais a lista das TSKs (todas e só as paradas há mais de 1 dia).
     function buildBacklogAging(analysis, now = new Date()) {
       const tickets = analysis.backlogTickets
         .filter((ticket) => currentAgingGroup === "all" || ticket.group === currentAgingGroup)
@@ -1780,8 +1790,9 @@
         }
       }
       const rows = [...byAnf].sort(([left], [right]) => BACKLOG_ANF_ORDER.indexOf(left) - BACKLOG_ANF_ORDER.indexOf(right));
-      const stale = tickets.filter((ticket) => ticket.days !== null && ticket.days >= BACKLOG_STALE_DAYS).sort((left, right) => right.days - left.days);
-      return { now, tickets, rows, total, stale, noDate: tickets.filter((ticket) => !ticket.aging).length };
+      const sorted = [...tickets].sort((left, right) => (right.days ?? -1) - (left.days ?? -1));
+      const stale = sorted.filter((ticket) => ticket.days !== null && ticket.days >= BACKLOG_STALE_DAYS);
+      return { now, tickets, sorted, rows, total, stale, noDate: tickets.filter((ticket) => !ticket.aging).length };
     }
 
     function renderBacklogAging(analysis) {
@@ -1842,10 +1853,16 @@
         pivotFoot.replaceChildren(buildRow("Total", aging.total, true));
       }
 
-      // Filtro por ANF: opções com as ANFs que têm TSK parada; várias ANFs escolhidas
+      // Lista: todo o backlog ou, com o botão "Só mais de 1 dia", só as paradas há mais de 1 dia.
+      const listTickets = agingStaleOnly ? aging.stale : aging.sorted;
+      const staleOnlyButton = document.getElementById("aging-stale-only-button");
+      staleOnlyButton.setAttribute("aria-pressed", String(agingStaleOnly));
+      document.getElementById("aging-list-title").textContent = agingStaleOnly ? "Paradas há mais de 1 dia" : "Todo o backlog";
+
+      // Filtro por ANF: opções com as ANFs que têm TSK na lista; várias ANFs escolhidas
       // (Ctrl + clique no quadro) aparecem numa opção só.
       const staleByAnf = new Map();
-      for (const ticket of aging.stale) staleByAnf.set(ticket.anf, (staleByAnf.get(ticket.anf) || 0) + 1);
+      for (const ticket of listTickets) staleByAnf.set(ticket.anf, (staleByAnf.get(ticket.anf) || 0) + 1);
       const byOrder = (left, right) => BACKLOG_ANF_ORDER.indexOf(left) - BACKLOG_ANF_ORDER.indexOf(right);
       const selectedAnfs = [...currentAgingAnfs].sort(byOrder);
       const anfFilter = document.getElementById("aging-anf-filter");
@@ -1856,12 +1873,12 @@
       };
       const optionAnfs = [...new Set([...staleByAnf.keys(), ...(selectedAnfs.length === 1 ? selectedAnfs : [])])].sort(byOrder);
       anfFilter.replaceChildren(
-        option("", `Todas as ANFs (${fmt(aging.stale.length)})`),
+        option("", `Todas as ANFs (${fmt(listTickets.length)})`),
         ...(selectedAnfs.length > 1 ? [option("__multi__", `${selectedAnfs.length} ANFs: ${selectedAnfs.join(", ")}`)] : []),
         ...optionAnfs.map((anf) => option(anf, `${anf} (${fmt(staleByAnf.get(anf) || 0)})`))
       );
       anfFilter.value = selectedAnfs.length > 1 ? "__multi__" : (selectedAnfs[0] || "");
-      const stale = aging.stale.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
+      const stale = listTickets.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
       document.getElementById("aging-stale-description").textContent = selectedAnfs.length
         ? `${fmt(stale.length)} TSKs em ${selectedAnfs.join(", ")}, da mais antiga para a mais recente.`
         : "Da mais antiga para a mais recente. Clique numa ANF do quadro para filtrar (Ctrl + clique para mais de uma).";
@@ -1869,8 +1886,9 @@
       const staleRows = document.getElementById("aging-stale-rows");
       if (!stale.length) {
         const row = make("tr");
-        const cell = make("td", "px-5 py-6 text-center text-sm text-[color:var(--muted)]", selectedAnfs.length ? `Nenhuma TSK parada há mais de 1 dia em ${selectedAnfs.join(", ")}.` : "Nenhuma TSK parada há mais de 1 dia neste grupo.");
-        cell.colSpan = 8;
+        const what = agingStaleOnly ? "Nenhuma TSK parada há mais de 1 dia" : "Nenhuma TSK em backlog";
+        const cell = make("td", "px-5 py-6 text-center text-sm text-[color:var(--muted)]", selectedAnfs.length ? `${what} em ${selectedAnfs.join(", ")}.` : `${what} neste grupo.`);
+        cell.colSpan = 9;
         row.append(cell);
         staleRows.replaceChildren(row);
         return;
@@ -1884,21 +1902,24 @@
       };
       staleRows.replaceChildren(...stale.map((ticket) => {
         const row = make("tr", "hover:bg-[color:var(--hover)]");
+        const priority = ticket.priority.toUpperCase();
         row.append(
           textCell(ticket.tsk, "font-semibold text-[color:var(--ink)] sm:pl-5"),
           textCell(ticket.anf, "text-[color:var(--ink-4)]"),
           textCell(ticket.bucket, "text-[color:var(--ink-4)]", [ticket.bucket, ticket.cm].filter(Boolean).join(" · ")),
           textCell(ticket.status, "hidden text-[color:var(--ink-4)] lg:table-cell"),
+          textCell(priority, `font-semibold ${BACKLOG_PRIORITY_TONES[priority] || "text-[color:var(--ink-3)]"}`),
           textCell(ticket.source, "hidden text-[color:var(--ink-4)] lg:table-cell"),
           textCell(ticket.createdAt.replace(/^(\d{1,2}\/\d{1,2})\/\d{2,4}\s+(\d{1,2}:\d{2}).*$/, "$1 $2"), "tabular hidden text-[color:var(--ink-4)] md:table-cell", ticket.createdAt),
-          textCell(formatStaleTime(ticket.days), "tabular text-right font-semibold text-[color:var(--ink)]", ""),
-          textCell(ticket.aging, `font-semibold sm:pr-5 ${BACKLOG_AGING_TONES[ticket.aging]}`)
+          textCell(ticket.days === null ? "" : formatStaleTime(ticket.days), "tabular text-right font-semibold text-[color:var(--ink)]", ""),
+          textCell(ticket.aging || "Sem data", `font-semibold sm:pr-5 ${BACKLOG_AGING_TONES[ticket.aging] || "text-[color:var(--muted)]"}`)
         );
         return row;
       }));
     }
 
-    // Planilha do aging (grupo selecionado): aba "Aging por ANF" e aba "Mais de 1 dia".
+    // Planilha do aging (grupo selecionado): aba "Aging por ANF" e aba com a lista exibida
+    // (todo o backlog ou só as paradas há mais de 1 dia, conforme o botão).
     function exportBacklogAging() {
       if (!currentAnalysis) return;
       if (!window.XLSX?.utils?.book_new || !window.XLSX?.utils?.aoa_to_sheet || !window.XLSX?.writeFile) {
@@ -1910,7 +1931,7 @@
         showFeedback("Não há chamados em backlog neste grupo para exportar.", "ok");
         return;
       }
-      const stale = aging.stale.filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
+      const stale = (agingStaleOnly ? aging.stale : aging.sorted).filter((ticket) => !currentAgingAnfs.size || currentAgingAnfs.has(ticket.anf));
       const workbook = XLSX.utils.book_new();
       const pivotSheet = XLSX.utils.aoa_to_sheet([
         ["ANF", ...BACKLOG_AGING_LABELS, "Total"],
@@ -1929,22 +1950,22 @@
           ticket.bucket,
           ticket.cm,
           ticket.status,
-          ticket.priority,
+          ticket.priority.toUpperCase(),
           ticket.createdAt,
-          formatStaleTime(ticket.days),
-          Math.round(ticket.days * 10) / 10,
-          ticket.aging
+          ticket.days === null ? "" : formatStaleTime(ticket.days),
+          ticket.days === null ? "" : Math.round(ticket.days * 10) / 10,
+          ticket.aging || "Sem data"
         ])
       ]);
       staleSheet["!cols"] = [16, 22, 14, 14, 40, 24, 14, 10, 20, 12, 8, 16].map((wch) => ({ wch }));
-      XLSX.utils.book_append_sheet(workbook, staleSheet, "Mais de 1 dia");
+      XLSX.utils.book_append_sheet(workbook, staleSheet, agingStaleOnly ? "Mais de 1 dia" : "Backlog");
       const groupSuffix = { all: "todas", technician: "fila-tecnica", commandCenter: "centralizado" }[currentAgingGroup];
       const anfSuffix = currentAgingAnfs.size === 1 ? `-${normalizeText([...currentAgingAnfs][0]).replace(/\s+/g, "-")}`
         : currentAgingAnfs.size > 1 ? `-${currentAgingAnfs.size}-anfs` : "";
-      XLSX.writeFile(workbook, `aging-backlog-${groupSuffix}${anfSuffix}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-      showFeedback(`Aging exportado: ${stale.length.toLocaleString("pt-BR")} TSKs paradas há mais de 1 dia.`, "ok");
+      const listSuffix = agingStaleOnly ? "-mais-de-1-dia" : "";
+      XLSX.writeFile(workbook, `aging-backlog-${groupSuffix}${anfSuffix}${listSuffix}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showFeedback(`Aging exportado: ${stale.length.toLocaleString("pt-BR")} TSKs ${agingStaleOnly ? "paradas há mais de 1 dia" : "em backlog"}.`, "ok");
     }
-
 
     function clearAnalysis() {
       for (const slot of Object.values(slots)) clearSlot(slot, true);
@@ -1955,6 +1976,7 @@
       cmGroup = "technician";
       currentAgingGroup = "all";
       currentAgingAnfs = new Set();
+      agingStaleOnly = false;
       document.getElementById("technician-sort").value = technicianSortOrder;
       results.classList.add("hidden");
       clearButton.classList.add("hidden");
@@ -2022,6 +2044,10 @@
         if (currentAnalysis) renderBacklogAging(currentAnalysis);
       });
     }
+    document.getElementById("aging-stale-only-button").addEventListener("click", () => {
+      agingStaleOnly = !agingStaleOnly;
+      if (currentAnalysis) renderBacklogAging(currentAnalysis);
+    });
     document.getElementById("aging-anf-filter").addEventListener("change", (event) => {
       if (event.target.value === "__multi__") return;
       currentAgingAnfs = new Set(event.target.value ? [event.target.value] : []);
