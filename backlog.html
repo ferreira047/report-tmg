@@ -381,15 +381,16 @@
             <table class="w-full table-fixed text-left text-sm">
               <thead class="sticky top-0 bg-[color:var(--sunken)] text-[11px] uppercase tracking-wide text-[color:var(--muted)]">
                 <tr>
-                  <th scope="col" class="w-[15%] px-3 py-2.5 font-semibold sm:pl-5">TSK</th>
-                  <th scope="col" class="w-[7%] px-3 py-2.5 font-semibold">ANF</th>
-                  <th scope="col" class="w-[21%] px-3 py-2.5 font-semibold">Bucket</th>
+                  <th scope="col" class="w-[14%] px-3 py-2.5 font-semibold sm:pl-5">TSK</th>
+                  <th scope="col" class="w-[12%] px-3 py-2.5 font-semibold">NE ID</th>
+                  <th scope="col" class="w-[6%] px-3 py-2.5 font-semibold">ANF</th>
+                  <th scope="col" class="w-[17%] px-3 py-2.5 font-semibold">Bucket</th>
                   <th scope="col" class="hidden w-[9%] px-3 py-2.5 font-semibold lg:table-cell">Status</th>
                   <th scope="col" class="w-[6%] px-3 py-2.5 font-semibold">Prior.</th>
-                  <th scope="col" class="hidden w-[11%] px-3 py-2.5 font-semibold lg:table-cell">Planilha</th>
-                  <th scope="col" class="hidden w-[10%] px-3 py-2.5 font-semibold md:table-cell">Criação do NTT</th>
-                  <th scope="col" class="w-[8%] px-3 py-2.5 text-right font-semibold">Parada há</th>
-                  <th scope="col" class="w-[11%] px-3 py-2.5 font-semibold sm:pr-5">Aging</th>
+                  <th scope="col" class="hidden w-[8%] px-3 py-2.5 font-semibold lg:table-cell">Planilha</th>
+                  <th scope="col" class="hidden w-[9%] px-3 py-2.5 font-semibold md:table-cell" title="Criação do NTT (coluna AS)">Criação NTT</th>
+                  <th scope="col" class="w-[7%] px-3 py-2.5 text-right font-semibold" title="Tempo parada desde a Criação do NTT">Parada</th>
+                  <th scope="col" class="w-[12%] px-3 py-2.5 font-semibold sm:pr-5">Aging</th>
                 </tr>
               </thead>
               <tbody id="aging-stale-rows" class="divide-y divide-[color:var(--line-soft)]"></tbody>
@@ -727,6 +728,10 @@
         const { label, scheduled, storageKey } = SOURCES[slot.key];
         const sheetName = slot.workbook.SheetNames.includes(slot.picker.value) ? slot.picker.value : slot.workbook.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(slot.workbook.Sheets[sheetName], { header: 1, defval: "", raw: false, blankrows: false });
+        // NE ID pelo cabeçalho (coluna "NE ID"; vazia, vale o END_ID, comum em preventivas e conjuntas).
+        const headerIndex = (name) => (rows[0] || []).findIndex((cell) => normalizeText(cell) === normalizeText(name));
+        const neIdIndex = headerIndex("NE ID");
+        const endIdIndex = headerIndex("END_ID");
         if (isScheduledSheet(rows) === !scheduled) {
           const other = Object.values(SOURCES).find((source) => source.scheduled !== scheduled);
           const fileName = slot.fileName;
@@ -779,7 +784,8 @@
             cm,
             status: String(row[statusIndex] ?? "").trim(),
             priority: String(row[priorityIndex] ?? "").trim(),
-            createdAt: String(row[nttCreatedIndex] ?? "").trim()
+            createdAt: String(row[nttCreatedIndex] ?? "").trim(),
+            site: String(row[neIdIndex] ?? "").trim() || String(row[endIdIndex] ?? "").trim()
           });
         }
         entrantsBySource[slot.key] = countTickets(sourceRows.filter((row) => isCreatedToday(row[nttCreatedIndex])));
@@ -1923,7 +1929,7 @@
         const row = make("tr");
         const what = agingStaleOnly ? "Nenhuma TSK parada há mais de 1 dia" : "Nenhuma TSK em backlog";
         const cell = make("td", "px-5 py-6 text-center text-sm text-[color:var(--muted)]", scope ? `${what} ${scope}.` : `${what} neste grupo.`);
-        cell.colSpan = 9;
+        cell.colSpan = 10;
         row.append(cell);
         staleRows.replaceChildren(row);
         return;
@@ -1940,11 +1946,12 @@
         const priority = ticket.priority.toUpperCase();
         row.append(
           textCell(ticket.tsk, "font-semibold text-[color:var(--ink)] sm:pl-5"),
+          textCell(ticket.site, "text-[color:var(--ink-2)]"),
           textCell(ticket.anf, "text-[color:var(--ink-4)]"),
           textCell(ticket.bucket, "text-[color:var(--ink-4)]", [ticket.bucket, ticket.cm].filter(Boolean).join(" · ")),
           textCell(ticket.status, "hidden text-[color:var(--ink-4)] lg:table-cell"),
           textCell(priority, `font-semibold ${BACKLOG_PRIORITY_TONES[priority] || "text-[color:var(--ink-3)]"}`),
-          textCell(ticket.source, "hidden text-[color:var(--ink-4)] lg:table-cell"),
+          textCell(ticket.source === "Não agendadas" ? "Não agend." : ticket.source, "hidden text-[color:var(--ink-4)] lg:table-cell", ticket.source),
           textCell(ticket.createdAt.replace(/^(\d{1,2}\/\d{1,2})\/\d{2,4}\s+(\d{1,2}:\d{2}).*$/, "$1 $2"), "tabular hidden text-[color:var(--ink-4)] md:table-cell", ticket.createdAt),
           textCell(ticket.days === null ? "" : formatStaleTime(ticket.days), "tabular text-right font-semibold text-[color:var(--ink)]", ""),
           textCell(ticket.aging || "Sem data", `font-semibold sm:pr-5 ${BACKLOG_AGING_TONES[ticket.aging] || "text-[color:var(--muted)]"}`)
@@ -1978,9 +1985,10 @@
       pivotSheet["!cols"] = [22, ...columns.map(() => 14), 10].map((wch) => ({ wch }));
       XLSX.utils.book_append_sheet(workbook, pivotSheet, "Aging por ANF");
       const staleSheet = XLSX.utils.aoa_to_sheet([
-        ["TSK", "ANF", "Planilha", "Grupo", "Bucket", "CM", "Status", "Prioridade", "Criação do NTT", "Parada há", "Dias", "Aging"],
+        ["TSK", "NE ID", "ANF", "Planilha", "Grupo", "Bucket", "CM", "Status", "Prioridade", "Criação do NTT", "Parada há", "Dias", "Aging"],
         ...stale.map((ticket) => [
           ticket.tsk,
+          ticket.site,
           ticket.anf,
           ticket.source,
           ticket.group === "technician" ? "Fila técnica" : "Centralizado",
@@ -1994,7 +2002,7 @@
           ticket.aging || "Sem data"
         ])
       ]);
-      staleSheet["!cols"] = [16, 22, 14, 14, 40, 24, 14, 10, 20, 12, 8, 16].map((wch) => ({ wch }));
+      staleSheet["!cols"] = [16, 18, 22, 14, 14, 40, 24, 14, 10, 20, 12, 8, 16].map((wch) => ({ wch }));
       XLSX.utils.book_append_sheet(workbook, staleSheet, agingStaleOnly ? "Mais de 1 dia" : "Backlog");
       const groupSuffix = { all: "todas", technician: "fila-tecnica", commandCenter: "centralizado" }[currentAgingGroup];
       const anfSuffix = currentAgingAnfs.size === 1 ? `-${normalizeText([...currentAgingAnfs][0]).replace(/\s+/g, "-")}`
