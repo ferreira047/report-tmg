@@ -471,13 +471,13 @@
     let cmGroup = "technician";
     // Aging das TSKs em backlog por ANF (código do CM na coluna AK; sem CM, tenta o bucket).
     const BACKLOG_ANFS = [
-      { label: "31 · BHE", codes: ["BHE"] },
-      { label: "32 · JFA", codes: ["JFA"] },
-      { label: "33 · GVS", codes: ["GVS"] },
-      { label: "34 · URA/ULA", codes: ["URA", "ULA"] },
-      { label: "35 · VGA/VGS", codes: ["VGA", "VGS"] },
-      { label: "37 · DVL", codes: ["DVL"] },
-      { label: "38 · MCL", codes: ["MCL"] }
+      { label: "31", codes: ["BHE"] },
+      { label: "32", codes: ["JFA"] },
+      { label: "33", codes: ["GVS"] },
+      { label: "34", codes: ["URA", "ULA"] },
+      { label: "35", codes: ["VGA", "VGS"] },
+      { label: "37", codes: ["DVL"] },
+      { label: "38", codes: ["MCL"] }
     ];
     const BACKLOG_ANF_ORDER = [...BACKLOG_ANFS.map(({ label }) => label), "Outros"];
     function classifyAnf(...values) {
